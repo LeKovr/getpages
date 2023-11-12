@@ -65,7 +65,7 @@ func main() {
 		nameStream <- scanner.Text()
 	}
 	err = scanner.Err() // Printed on exit
-	close(nameStream) // Stop workers
+	close(nameStream)   // Stop workers
 	wg.Wait()
 }
 
