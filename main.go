@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 )
@@ -41,7 +42,7 @@ func main() {
 	if sourceFile == "" {
 		sourceStream = os.Stdin
 	} else {
-		sourceStream, err = os.Open(sourceFile)
+		sourceStream, err = os.Open(filepath.Clean(sourceFile))
 		if err != nil {
 			return
 		}
