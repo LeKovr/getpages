@@ -5,7 +5,7 @@
  [![GitHub Release][gr1]][gr2]
  [![GitHub license][gl1]][gl2]
 
-[cc1]: https://codecov.io/gh/LeKovr/getpages/branch/master/graph/badge.svg
+[cc1]: https://codecov.io/gh/LeKovr/getpages/branch/main/graph/badge.svg
 [cc2]: https://codecov.io/gh/LeKovr/getpages
 [gc1]: https://goreportcard.com/badge/github.com/LeKovr/getpages
 [gc2]: https://goreportcard.com/report/github.com/LeKovr/getpages
