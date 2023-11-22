@@ -95,7 +95,7 @@ func ProcessStream(ctx context.Context, client *http.Client, stream <-chan strin
 		meta, err := Get(ctx, client, reqURL)
 		elapsed := time.Since(start)
 		var level slog.Level
-		contextAttrs := make([]slog.Attr, 2, 3)
+		contextAttrs := make([]slog.Attr, 0, 2)
 		if err != nil {
 			level = slog.LevelError
 			contextAttrs = append(contextAttrs, slog.String("error", err.Error()))
