@@ -86,11 +86,7 @@ type ResponseMeta struct {
 
 // ProcessStream listens channel and process received addresses.
 func ProcessStream(ctx context.Context, client *http.Client, stream <-chan string) {
-	for {
-		reqURL, ok := <-stream
-		if !ok { // channel closed, stop work
-			return
-		}
+	for reqURL := range stream {
 		start := time.Now()
 		meta, err := Get(ctx, client, reqURL)
 		elapsed := time.Since(start)
