@@ -31,5 +31,10 @@ func TestMain(t *testing.T) {
 	if c != 0 {
 		t.Errorf("expected 0, got %d", c)
 	}
+	os.Args = []string{"test", "-source", "::"}
+	Run(ctx, func(code int) { c = code })
+	if c != 1 {
+		t.Errorf("expected 0, got %d", c)
+	}
 	os.Args = a
 }
