@@ -23,7 +23,7 @@ build: $(PRG)
 
 $(PRG): $(SOURCES) go.*
 	@GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-	  $(GO) build -v -o $@ .
+	  $(GO) build -v -o $@ ./cmd/$(PRG)
 
 ## Build & run app
 run: $(PRG)
@@ -64,8 +64,7 @@ test-race:
 
 # internal target
 coverage.out: $(SOURCES)
-	@#GIN_MODE=release $(GO) test -test.v -test.race -coverprofile=$@ -covermode=atomic ./...
-	$(GO) test -tags test -covermode=atomic -coverprofile=$@ ./...
+	@$(GO) test -tags test -covermode=atomic -coverprofile=$@ ./...
 
 ## Open coverage report in browser
 cov-html: coverage.out

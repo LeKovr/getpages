@@ -1,4 +1,4 @@
-package main
+package getpages_test
 
 import (
 	"context"
@@ -7,80 +7,92 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
-)
 
-const (
-	PageOK       = "page"
-	PageNotFound = "404"
-	PageTimeout  = "sleep"
-	PageNotValid = "::"
-)
-
-var (
-	// WaitDuration is a request timeout.
-	WaitDuration = 5 * time.Millisecond
-	// ExtraDuration must be longer than WaitDuration.
-	ExtraDuration = 10 * time.Millisecond
-
-	testBody = []byte(`sometext`)
-
-	tests = []struct {
-		suffix    string
-		addPrefix bool
-		isTimeout bool
-		wantErr   string
-	}{
-		{PageOK, true, false, ""},
-		{PageNotFound, true, false, "Status is not OK"},
-		{PageNotValid, false, false, "missing protocol scheme"},
-		{PageTimeout, true, true, "context deadline exceeded"},
-	}
+	"github.com/LeKovr/getpages"
+	"github.com/LeKovr/getpages/pkgtest"
 )
 
 func TestGet(t *testing.T) {
 	srv := httptest.NewServer(
-		http.HandlerFunc(testingHandler),
+		http.HandlerFunc(pkgtest.Handler),
 	)
 	defer srv.Close()
 	client := &http.Client{
-		Timeout: WaitDuration,
+		Timeout: pkgtest.WaitDuration,
 	}
 	ctx := context.Background()
 
-	for _, tt := range tests {
-		addr := tt.suffix
-		if tt.addPrefix {
+	for _, tt := range pkgtest.Tests {
+		addr := tt.Suffix
+		if tt.AddPrefix {
 			addr = srv.URL + "/" + addr
 		}
-		meta, err := Get(ctx, client, addr)
+		meta, err := getpages.Get(ctx, client, addr)
 		switch {
-		case tt.isTimeout:
+		case tt.IsTimeout:
 			e := errors.Unwrap(err)
 			if !os.IsTimeout(e) {
 				t.Errorf("expected timeout, got %#v", err)
 			}
 		case err != nil:
-			if !strings.Contains(err.Error(), tt.wantErr) {
-				t.Errorf("expected error %v, got %v", tt.wantErr, err)
+			if !strings.Contains(err.Error(), tt.WantErr) {
+				t.Errorf("expected error %v, got %v", tt.WantErr, err)
 			}
 		default:
-			if meta.Length != int64(len(testBody)) {
-				t.Errorf("expected %d, got %d", len(testBody), meta.Length)
+			if meta.Length != int64(len(pkgtest.TestBody)) {
+				t.Errorf("expected %d, got %d", len(pkgtest.TestBody), meta.Length)
 			}
 		}
 	}
 }
 
-func testingHandler(w http.ResponseWriter, r *http.Request) {
-	switch r.URL.Path {
-	case "/" + PageTimeout:
-		time.Sleep(ExtraDuration)
-	case "/" + PageNotFound:
-		http.Error(w, "404", http.StatusNotFound)
-		return
+func TestWork(t *testing.T) {
+	srv := httptest.NewServer(
+		http.HandlerFunc(pkgtest.Handler),
+	)
+	defer srv.Close()
+	file := pkgtest.FillSource(t, srv.URL)
+	defer func() {
+		err := os.Remove(file)
+		if err != nil {
+			t.Error(err)
+		}
+	}()
+	ctx := context.Background()
+	wc := 2
+	gps := getpages.New(file, 5000*time.Microsecond, wc)
+	var wg sync.WaitGroup
+	wg.Add(wc)
+	for i := 0; i < wc; i++ {
+		go func() {
+			defer wg.Done()
+			gps.ProcessStream(ctx)
+		}()
 	}
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(testBody)
+	var totalLen int64
+	const waitLen int64 = 8
+	go func() {
+		WriteResults(ctx, gps, &totalLen)
+	}()
+	err := gps.ProcessSource() // read sourceFile and send to workers
+	wg.Wait()                  // wait for ProcessStream workers ends
+	gps.Close()                // wait for WriteResults ends
+	if err != nil {
+		t.Errorf("unexpected error %v", err)
+	}
+	if totalLen != waitLen {
+		t.Errorf("total length not eq, want %d, got %d", waitLen, totalLen)
+	}
+}
+
+func WriteResults(_ context.Context, gps *getpages.Service, length *int64) {
+	for result := range gps.ResultChan() {
+		if result.Error == nil {
+			*length += result.Length
+		}
+	}
+	gps.ResultIsProcessed()
 }

@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"sync"
 	"time"
+
+	"github.com/LeKovr/getpages"
 )
 
 var (
@@ -20,16 +22,19 @@ func init() {
 	flag.IntVar(&workerCount, "workers", 2, "workers count")
 }
 
-func main() {
+// Run app and exit via given exitFunc.
+func Run(ctx context.Context, exitFunc func(code int)) {
 	flag.Parse()
 	var err error
 	defer func() {
+		var code int
 		if err != nil {
 			slog.Error("Exit", "error", err)
+			code = 1
 		}
+		exitFunc(code)
 	}()
-	gps := NewGetPagesService(sourceFile, reqTimeout)
-	ctx := context.Background()
+	gps := getpages.New(sourceFile, reqTimeout, workerCount)
 	var wg sync.WaitGroup
 	wg.Add(workerCount)
 	for i := 0; i < workerCount; i++ {
@@ -47,7 +52,7 @@ func main() {
 }
 
 // WriteResults writes get results as logs.
-func WriteResults(ctx context.Context, gps *GetPagesService) {
+func WriteResults(ctx context.Context, gps *getpages.Service) {
 	var level slog.Level
 	contextAttrs := make([]slog.Attr, 2)
 	for result := range gps.ResultChan() {

@@ -1,4 +1,5 @@
-package main
+// Package getpages used to get pages via URL list
+package getpages
 
 import (
 	"bufio"
@@ -42,8 +43,8 @@ type Response struct {
 	Elapsed time.Duration
 }
 
-// GetPagesService holds service attributes.
-type GetPagesService struct {
+// Service holds service attributes.
+type Service struct {
 	sourceFile   string
 	client       *http.Client
 	nameStream   chan string
@@ -51,19 +52,19 @@ type GetPagesService struct {
 	quit         chan struct{}
 }
 
-// NewGetPagesService returns initialized *GetPagesService.
-func NewGetPagesService(sourceFile string, reqTimeout time.Duration) *GetPagesService {
-	return &GetPagesService{
+// New returns initialized *Service.
+func New(sourceFile string, reqTimeout time.Duration, sourceChanLen int) *Service {
+	return &Service{
 		sourceFile:   sourceFile,
 		client:       &http.Client{Timeout: reqTimeout},
-		nameStream:   make(chan string, workerCount),
+		nameStream:   make(chan string, sourceChanLen),
 		resultStream: make(chan Response),
 		quit:         make(chan struct{}),
 	}
 }
 
 // ProcessSource reads sourceStream, sends to nameStream and closes nameStream when done.
-func (gps GetPagesService) ProcessSource() error {
+func (gps Service) ProcessSource() error {
 	var err error
 	var sourceStream io.ReadCloser
 	if gps.sourceFile == "" {
@@ -99,18 +100,18 @@ func (gps GetPagesService) ProcessSource() error {
 }
 
 // Close waits for WriteResults completion.
-func (gps GetPagesService) Close() {
+func (gps Service) Close() {
 	close(gps.resultStream) // stop WriteResults
 	<-gps.quit              // wait for WriteResults ends
 }
 
 // ResultChan returns channel with service results.
-func (gps GetPagesService) ResultChan() <-chan Response {
+func (gps Service) ResultChan() <-chan Response {
 	return gps.resultStream
 }
 
 // ResultIsProcessed called by result processor as job done signal.
-func (gps GetPagesService) ResultIsProcessed() {
+func (gps Service) ResultIsProcessed() {
 	gps.quit <- struct{}{} // Signal to parent: write is done
 }
 
@@ -125,7 +126,7 @@ func (e StatusError) Error() string {
 }
 
 // ProcessStream listens channel and process received addresses.
-func (gps GetPagesService) ProcessStream(ctx context.Context) {
+func (gps Service) ProcessStream(ctx context.Context) {
 	for reqURL := range gps.nameStream {
 		start := time.Now()
 		meta, err := Get(ctx, gps.client, reqURL)
