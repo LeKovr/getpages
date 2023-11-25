@@ -67,6 +67,8 @@ func New(sourceFile string, reqTimeout time.Duration, sourceChanLen int) *Servic
 func (gps Service) ProcessSource() error {
 	var err error
 	var sourceStream io.ReadCloser
+	defer close(gps.nameStream) // Stop workers
+
 	if gps.sourceFile == "" {
 		sourceStream = os.Stdin
 	} else {
@@ -95,7 +97,6 @@ func (gps Service) ProcessSource() error {
 		}
 		lineNo++
 	}
-	close(gps.nameStream) // Stop workers
 	return scanner.Err()
 }
 
